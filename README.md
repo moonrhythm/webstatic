@@ -8,3 +8,6 @@ returns not found for directory
 http.Handle("/-/", http.StripPrefix("/-", webstatic.New("assets")))
 ```
 
+## License
+
+MIT

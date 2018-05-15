@@ -9,7 +9,16 @@ returns not found for directory
 ## Usage
 
 ```go
-http.Handle("/-/", http.StripPrefix("/-", webstatic.New("assets")))
+http.Handle("/-/", http.StripPrefix("/-", webstatic.NewDir("assets")))
+```
+
+or
+
+```go
+http.Handle("/-/", http.StripPrefix("/-", webstatic.New(webstatic.Config{
+	Dir: "assets",
+	CacheControl: "public, max-age=3600",
+})))
 ```
 
 ## License

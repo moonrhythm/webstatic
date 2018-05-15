@@ -25,6 +25,11 @@ func New(c Config) http.Handler {
 	return cacheControl(http.FileServer(&webstaticFS{http.Dir(c.Dir)}))
 }
 
+// NewDir creates new webstatic handler with dir
+func NewDir(dir string) http.Handler {
+	return New(Config{Dir: dir})
+}
+
 type webstaticFS struct {
 	http.FileSystem
 }

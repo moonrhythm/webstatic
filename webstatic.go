@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Dir          string
 	CacheControl string
+	Fallback     http.Handler
 }
 
 // New creates new webstatic handler
@@ -18,6 +19,11 @@ func New(c Config) http.Handler {
 			nw := responseWriter{
 				ResponseWriter: w,
 				cacheControl:   c.CacheControl,
+			}
+			if c.Fallback != nil {
+				nw.fallback = func() {
+					c.Fallback.ServeHTTP(w, r)
+				}
 			}
 			h.ServeHTTP(&nw, r)
 		})
@@ -53,6 +59,16 @@ type responseWriter struct {
 	http.ResponseWriter
 	wroteHeader  bool
 	cacheControl string
+	header       http.Header
+	noop         bool
+	fallback     func()
+}
+
+func (w *responseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
 }
 
 func (w *responseWriter) WriteHeader(code int) {
@@ -68,7 +84,19 @@ func (w *responseWriter) WriteHeader(code int) {
 			w.Header().Set("Cache-Control", w.cacheControl)
 		}
 	case http.StatusNotFound:
+		if w.fallback != nil {
+			w.noop = true
+			w.fallback()
+			return
+		}
 		w.Header().Set("Cache-Control", "private, max-age=0")
+	}
+
+	h := w.ResponseWriter.Header()
+	for k, v := range w.Header() {
+		for _, vv := range v {
+			h.Add(k, vv)
+		}
 	}
 
 	w.ResponseWriter.WriteHeader(code)
@@ -77,6 +105,9 @@ func (w *responseWriter) WriteHeader(code int) {
 func (w *responseWriter) Write(p []byte) (int, error) {
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
+	}
+	if w.noop {
+		return len(p), nil
 	}
 	return w.ResponseWriter.Write(p)
 }

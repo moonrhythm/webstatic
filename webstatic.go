@@ -77,11 +77,13 @@ func (w *responseWriter) WriteHeader(code int) {
 	}
 	w.wroteHeader = true
 
+	h := w.ResponseWriter.Header()
+
 	// 304 must send cache-control, https://tools.ietf.org/html/rfc7232#section-4.1
 	switch code {
 	case http.StatusOK, http.StatusNotModified:
 		if w.cacheControl != "" {
-			w.Header().Set("Cache-Control", w.cacheControl)
+			h.Set("Cache-Control", w.cacheControl)
 		}
 	case http.StatusNotFound:
 		if w.fallback != nil {
@@ -89,11 +91,9 @@ func (w *responseWriter) WriteHeader(code int) {
 			w.fallback()
 			return
 		}
-		w.Header().Set("Cache-Control", "private, max-age=0")
 	}
 
-	h := w.ResponseWriter.Header()
-	for k, v := range w.Header() {
+	for k, v := range w.header {
 		for _, vv := range v {
 			h.Add(k, vv)
 		}

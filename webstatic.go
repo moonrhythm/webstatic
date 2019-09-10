@@ -3,44 +3,55 @@ package webstatic
 import (
 	"net/http"
 	"os"
+	"sync"
 )
 
-// Config is webstatic config
-type Config struct {
+// Handler serve static files
+type Handler struct {
 	Dir          string
 	CacheControl string
 	Fallback     http.Handler
+
+	initOnce sync.Once
+	h        http.Handler
 }
 
-// New creates new webstatic handler
-func New(c Config) http.Handler {
-	cacheControl := func(h http.Handler) http.Handler {
+func (h *Handler) init() {
+	cacheControl := func(hh http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			nw := responseWriter{
 				ResponseWriter: w,
-				cacheControl:   c.CacheControl,
+				cacheControl:   h.CacheControl,
 			}
-			if c.Fallback != nil {
+			if h.Fallback != nil {
 				nw.fallback = func() {
-					c.Fallback.ServeHTTP(w, r)
+					h.Fallback.ServeHTTP(w, r)
 				}
 			}
-			h.ServeHTTP(&nw, r)
+			hh.ServeHTTP(&nw, r)
 		})
 	}
-	return cacheControl(http.FileServer(&webstaticFS{http.Dir(c.Dir)}))
+
+	h.h = cacheControl(http.FileServer(&fs{http.Dir(h.Dir)}))
 }
 
-// NewDir creates new webstatic handler with dir
-func NewDir(dir string) http.Handler {
-	return New(Config{Dir: dir})
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.initOnce.Do(h.init)
+	h.h.ServeHTTP(w, r)
 }
 
-type webstaticFS struct {
+// Dir creates new handler with dir
+func Dir(dir string) *Handler {
+	return &Handler{
+		Dir: dir,
+	}
+}
+
+type fs struct {
 	http.FileSystem
 }
 
-func (fs *webstaticFS) Open(name string) (http.File, error) {
+func (fs *fs) Open(name string) (http.File, error) {
 	f, err := fs.FileSystem.Open(name)
 	if err != nil {
 		return nil, err

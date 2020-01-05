@@ -16,7 +16,7 @@ or
 
 ```go
 http.Handle("/-/", http.StripPrefix("/-", &webstatic.Handler{
-    Dir: "assets",
+    FileSystem: http.Dir("assets"),
     CacheControl: "public, max-age=3600",
 }))
 ```

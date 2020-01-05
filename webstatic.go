@@ -8,7 +8,7 @@ import (
 
 // Handler serve static files
 type Handler struct {
-	Dir          string
+	FileSystem   http.FileSystem
 	CacheControl string
 	Fallback     http.Handler
 
@@ -32,7 +32,7 @@ func (h *Handler) init() {
 		})
 	}
 
-	h.h = cacheControl(http.FileServer(&fs{http.Dir(h.Dir)}))
+	h.h = cacheControl(http.FileServer(&fs{h.FileSystem}))
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -40,10 +40,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.h.ServeHTTP(w, r)
 }
 
-// Dir creates new handler with dir
+// Dir creates new handler with http.Dir
 func Dir(dir string) *Handler {
 	return &Handler{
-		Dir: dir,
+		FileSystem: http.Dir(dir),
 	}
 }
 
